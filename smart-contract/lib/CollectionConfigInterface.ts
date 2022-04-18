@@ -21,4 +21,6 @@ export default interface CollectionConfigInterface {
   whitelistAddresses: string[];
   marketplaceIdentifier: string;
   marketplaceConfig: MarketplaceConfigInterface,
+  reservedSupply: number,
+  royaltyFeesInBips: number,
 };

@@ -13,7 +13,7 @@ const CollectionConfig: CollectionConfigInterface = {
   tokenName: 'My NFT Token',
   tokenSymbol: 'MNT',
   hiddenMetadataUri: 'ipfs://__CID__/hidden.json',
-  maxSupply: 10000,
+  maxSupply: 20,
   whitelistSale: {
     price: 0.05,
     maxMintAmountPerTx: 1,
@@ -26,10 +26,12 @@ const CollectionConfig: CollectionConfigInterface = {
     price: 0.09,
     maxMintAmountPerTx: 5,
   },
-  contractAddress: null,
+  contractAddress: "0x568E8d26d21D0CA7851851Ba4917C4De52F5057A",
   marketplaceIdentifier: 'my-nft-token',
   marketplaceConfig: Marketplaces.openSea,
   whitelistAddresses,
+  reservedSupply: 10,
+  royaltyFeesInBips: 250,
 };
 
 export default CollectionConfig;

@@ -20,5 +20,8 @@ module.exports = {
       "error",
       { ignores: ["modules"] },
     ],
+    'prettier/prettier': [
+      { singleQuote: true },
+    ],
   },
 };
