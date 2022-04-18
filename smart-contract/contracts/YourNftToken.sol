@@ -69,7 +69,6 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
 
         // Reserve initial tokens for giveaways and rewards...
         reservedSupply = _reservedSupply;
-
         if (reservedSupply > 0) _safeMint(msg.sender, reservedSupply);
 
         // Set the royalites
@@ -84,6 +83,9 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
     //     maxSupply = 20;
     //     maxMintAmountPerTx = 5;
     //     hiddenMetadataUri = "ipfs://__CID__/hidden.json";
+    //     reservedSupply = 10;
+    //     royaltyAddress = msg.sender;
+    //     royaltyFeesInBips = 250;
     // }
 
     /// Check if there are tokens left that can be minted, and that the amount does not exceed the limit per tx
@@ -109,25 +111,7 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
      * User actions *
      ****************/
 
-    function whitelistMint(uint256 _mintAmount, bytes32[] calldata _merkleProof)
-        public
-        payable
-        mintCompliance(_mintAmount)
-        mintPriceCompliance(_mintAmount)
-    {
-        // Verify whitelist requirements
-        require(whitelistMintEnabled, "The whitelist sale is not enabled!");
-        require(!whitelistClaimed[_msgSender()], "Address already claimed!");
-        bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
-        require(
-            MerkleProof.verify(_merkleProof, merkleRoot, leaf),
-            "Invalid proof!"
-        );
-
-        whitelistClaimed[_msgSender()] = true;
-        _safeMint(_msgSender(), _mintAmount);
-    }
-
+    /// Mint tokens
     function mint(uint256 _mintAmount)
         public
         payable
@@ -139,6 +123,37 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
         _safeMint(_msgSender(), _mintAmount);
     }
 
+    /// Mint tokens if the wallet has been whitelisted
+    function whitelistMint(uint256 _mintAmount, bytes32[] calldata _merkleProof)
+        public
+        payable
+        mintCompliance(_mintAmount)
+        mintPriceCompliance(_mintAmount)
+    {
+        // Verify whitelist requirements
+        require(whitelistMintEnabled, "The whitelist sale is not enabled!");
+        require(!whitelistClaimed[_msgSender()], "Address already claimed!");
+        require(isWhitelisted(_msgSender(), _merkleProof), "Invalid proof!");
+
+        whitelistClaimed[_msgSender()] = true;
+        _safeMint(_msgSender(), _mintAmount);
+    }
+
+    /******************
+     * View functions *
+     ******************/
+
+    /// Check if the wallet is whitelisted for the presale
+    function isWhitelisted(address wallet, bytes32[] calldata _merkleProof)
+        public
+        view
+        returns (bool)
+    {
+        bytes32 leaf = keccak256(abi.encodePacked(wallet));
+        return MerkleProof.verify(_merkleProof, merkleRoot, leaf);
+    }
+
+    /// Get all the tokens owned by the address
     function walletOfOwner(address _owner)
         public
         view
@@ -208,6 +223,47 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
                 : "";
     }
 
+    /// @dev OpenSea contract metadata
+    function contractURI() external view returns (string memory) {
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        // solium-disable-next-line quotes
+                        '{"seller_fee_basis_points": ', // solhint-disable-line quotes
+                        uint256(royaltyFeesInBips).toString(),
+                        // solium-disable-next-line quotes
+                        ', "fee_recipient": "', // solhint-disable-line quotes
+                        uint256(uint160(royaltyAddress)).toHexString(20),
+                        // solium-disable-next-line quotes
+                        '"}' // solhint-disable-line quotes
+                    )
+                )
+            )
+        );
+        string memory output = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
+        return output;
+    }
+
+    /// @dev See {ERC721A-_baseURI}. Default empty. Overridden to support a non-empty baseTokenURI.
+    function _baseURI() internal view virtual override returns (string memory) {
+        return uriPrefix;
+    }
+
+    /// @dev See {IERC165-supportsInterface}.
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721A, ERC2981)
+        returns (bool)
+    {
+        return
+            ERC721A.supportsInterface(interfaceId) ||
+            ERC2981.supportsInterface(interfaceId);
+    }
+
     /*****************
      * Admin actions *
      *****************/
@@ -262,25 +318,6 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
         whitelistMintEnabled = _state;
     }
 
-    function withdraw() public onlyOwner nonReentrant {
-        // This will pay HashLips Lab Team 5% of the initial sale.
-        // By leaving the following lines as they are you will contribute to the
-        // development of tools like this and many others.
-        // =============================================================================
-        // (bool hs, ) = payable(0x146FB9c3b2C13BA88c6945A759EbFa95127486F4).call{
-        //     value: (address(this).balance * 5) / 100
-        // }("");
-        // require(hs);
-        // =============================================================================
-
-        // This will transfer the remaining contract balance to the owner.
-        // Do not remove this otherwise you will not be able to withdraw the funds.
-        // =============================================================================
-        (bool os, ) = payable(owner()).call{value: address(this).balance}("");
-        require(os);
-        // =============================================================================
-    }
-
     function setRoyaltyFeesInBips(uint96 _fee) external onlyOwner {
         royaltyFeesInBips = _fee;
     }
@@ -303,48 +340,22 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
         _setDefaultRoyalty(receiver, royaltyFeesInBips);
     }
 
-    /// @dev OpenSea contract metadata
-    function contractURI() external view returns (string memory) {
-        string memory json = Base64.encode(
-            bytes(
-                string(
-                    abi.encodePacked(
-                        // solium-disable-next-line quotes
-                        '{"seller_fee_basis_points": ', // solhint-disable-line quotes
-                        uint256(royaltyFeesInBips).toString(),
-                        // solium-disable-next-line quotes
-                        ', "fee_recipient": "', // solhint-disable-line quotes
-                        uint256(uint160(royaltyAddress)).toHexString(20),
-                        // solium-disable-next-line quotes
-                        '"}' // solhint-disable-line quotes
-                    )
-                )
-            )
-        );
-        string memory output = string(
-            abi.encodePacked("data:application/json;base64,", json)
-        );
-        return output;
-    }
+    function withdraw() public onlyOwner nonReentrant {
+        // This will pay HashLips Lab Team 5% of the initial sale.
+        // By leaving the following lines as they are you will contribute to the
+        // development of tools like this and many others.
+        // =============================================================================
+        // (bool hs, ) = payable(0x146FB9c3b2C13BA88c6945A759EbFa95127486F4).call{
+        //     value: (address(this).balance * 5) / 100
+        // }("");
+        // require(hs);
+        // =============================================================================
 
-    /***********************
-     * Other ERC overrides *
-     ***********************/
-
-    /// @dev See {ERC721A-_baseURI}. Default empty. Overridden to support a non-empty baseTokenURI.
-    function _baseURI() internal view virtual override returns (string memory) {
-        return uriPrefix;
-    }
-
-    /// @dev See {IERC165-supportsInterface}.
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721A, ERC2981)
-        returns (bool)
-    {
-        return
-            ERC721A.supportsInterface(interfaceId) ||
-            ERC2981.supportsInterface(interfaceId);
+        // This will transfer the remaining contract balance to the owner.
+        // Do not remove this otherwise you will not be able to withdraw the funds.
+        // =============================================================================
+        (bool os, ) = payable(owner()).call{value: address(this).balance}("");
+        require(os);
+        // =============================================================================
     }
 }
