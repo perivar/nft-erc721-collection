@@ -1,20 +1,21 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import chai, { expect } from 'chai';
-import { ethers, upgrades } from 'hardhat';
+import { expect } from 'chai';
 import { BigNumber, utils } from 'ethers';
+import { ethers } from 'hardhat';
+
 import CollectionConfig from './../config/CollectionConfig';
 
 enum SaleType {
   WHITELIST = CollectionConfig.whitelistSale.price,
   PRE_SALE = CollectionConfig.preSale.price,
   PUBLIC_SALE = CollectionConfig.publicSale.price,
-};
+}
 
 function getPrice(saleType: SaleType, mintAmount: number) {
   return utils.parseEther(saleType.toString()).mul(mintAmount);
 }
 
-describe("ContractCollection", function () {
+describe('ContractCollection', function () {
   let owner!: SignerWithAddress;
   let whitelistedUser!: SignerWithAddress;
   let holder!: SignerWithAddress;
@@ -22,48 +23,48 @@ describe("ContractCollection", function () {
 
   let deploymentConfig: {
     // Name of the Contract contract.
-    name: string,
+    name: string;
     // Symbol of the Contract contract.
-    symbol: string,
+    symbol: string;
     // The contract owner address. If you wish to own the contract, then set it as your wallet address.
     // This is also the wallet that can manage the contract on Contract marketplaces. Use `transferOwnership()`
     // to update the contract owner.
-    owner: string,
+    owner: string;
     // The maximum number of tokens that can be minted in this collection.
-    maxSupply: number,
+    maxSupply: number;
     // The number of free token mints reserved for the contract owner
-    reservedSupply: number,
+    reservedSupply: number;
     // Minting price per token.
-    mintPrice: BigNumber,
+    mintPrice: BigNumber;
     // The maximum number of tokens the user can mint per transaction.
-    tokensPerMint: number,
+    tokensPerMint: number;
     // Treasury address is the address where minting fees can be withdrawn to.
     // Use `withdrawFees()` to transfer the entire contract balance to the treasury address.
-    treasuryAddress: string,
+    treasuryAddress: string;
   };
 
   let runtimeConfig: {
     // Metadata base URI for tokens, Contracts minted in this contract will have metadata URI of `baseURI` + `tokenID`.
     // Set this to reveal token metadata.
-    baseURI: string,
+    baseURI: string;
     // If true, the base URI of the Contracts minted in the specified contract can be updated after minting (token URIs
     // are not frozen on the contract level). This is useful for revealing Contracts after the drop. If false, all the
     // Contracts minted in this contract are frozen by default which means token URIs are non-updatable.
-    metadataUpdatable: boolean,
+    metadataUpdatable: boolean;
     // Starting timestamp for public minting.
-    publicMintStart: number,
+    publicMintStart: number;
     // Starting timestamp for whitelisted/presale minting.
-    presaleMintStart: number,
+    presaleMintStart: number;
     // Pre-reveal token URI for placholder metadata. This will be returned for all token IDs until a `baseURI`
     // has been set.
-    prerevealTokenURI: string,
+    prerevealTokenURI: string;
     // Root of the Merkle tree of whitelisted addresses. This is used to check if a wallet has been whitelisted
     // for presale minting.
-    presaleMerkleRoot: string,
+    presaleMerkleRoot: string;
     // Secondary market royalties in basis points (100 bps = 1%)
-    royaltiesBps: number,
+    royaltiesBps: number;
     // Address for royalties
-    royaltiesAddress: string,
+    royaltiesAddress: string;
   };
 
   before(async function () {
@@ -78,7 +79,7 @@ describe("ContractCollection", function () {
       mintPrice: getPrice(SaleType.WHITELIST, 1),
       tokensPerMint: 5,
       treasuryAddress: await owner.getAddress(),
-    }
+    };
 
     /// Updatable by admins and owner
     runtimeConfig = {
@@ -90,19 +91,18 @@ describe("ContractCollection", function () {
       presaleMerkleRoot: '0x04a3e04eede938863f82857a51888d1095c80b4194ff003d5ae6058a8965a1a2',
       royaltiesBps: 100,
       royaltiesAddress: await owner.getAddress(),
-    }
+    };
 
     // console.log('deploymentConfig:', deploymentConfig);
     // console.log('runtimeConfig:', runtimeConfig);
-
   });
 
-  it("It should deploy the contract, mint a token, and resolve to the right URI", async () => {
-    const Contract = await ethers.getContractFactory("NFTCollection");
+  it('It should deploy the contract, mint a token, and resolve to the right URI', async () => {
+    const Contract = await ethers.getContractFactory('NFTCollection');
 
     // code for upgradeable contracts
     // const contract = await upgrades.deployProxy(Contract, [tokenName, tokenSymbol, owner.address], { initializer: 'initialize(string,string,address)', unsafeAllow: ['constructor'] });
-    
+
     const contract = await Contract.deploy();
     await contract.deployed();
 
@@ -114,8 +114,8 @@ describe("ContractCollection", function () {
     // const t = await contract.connect(owner).tokenURI(1);
   });
 
-  it("It should deploy the contract, with correct name and symbol", async () => {
-    const Contract = await ethers.getContractFactory("NFTCollection");
+  it('It should deploy the contract, with correct name and symbol', async () => {
+    const Contract = await ethers.getContractFactory('NFTCollection');
     const contract = await Contract.deploy();
     await contract.deployed();
 

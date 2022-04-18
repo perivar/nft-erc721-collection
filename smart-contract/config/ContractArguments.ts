@@ -1,4 +1,5 @@
 import { utils } from 'ethers';
+
 import CollectionConfig from './CollectionConfig';
 
 // Update the following array if you change the constructor arguments...
@@ -10,7 +11,7 @@ const ContractArguments = [
   CollectionConfig.whitelistSale.maxMintAmountPerTx,
   CollectionConfig.hiddenMetadataUri,
   CollectionConfig.reservedSupply,
-  CollectionConfig.royaltyFeesInBips
+  CollectionConfig.royaltyFeesInBips,
 ] as const;
 
 export default ContractArguments;

@@ -361,7 +361,7 @@ contract NFTCollection is ERC721, ERC2981, AccessControl, Initializable {
     function royaltyInfo(uint256, uint256 salePrice)
         external
         view
-        override // added by PIN
+        override
         returns (address receiver, uint256 royaltyAmount)
     {
         receiver = _runtimeConfig.royaltiesAddress;

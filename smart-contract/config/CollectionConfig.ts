@@ -1,6 +1,6 @@
 import CollectionConfigInterface from '../lib/CollectionConfigInterface';
-import * as Networks from '../lib/Networks';
 import * as Marketplaces from '../lib/Marketplaces';
+import * as Networks from '../lib/Networks';
 import whitelistAddresses from './whitelist.json';
 
 const CollectionConfig: CollectionConfigInterface = {
@@ -26,7 +26,7 @@ const CollectionConfig: CollectionConfigInterface = {
     price: 0.09,
     maxMintAmountPerTx: 5,
   },
-  contractAddress: "0x568E8d26d21D0CA7851851Ba4917C4De52F5057A",
+  contractAddress: '0x568E8d26d21D0CA7851851Ba4917C4De52F5057A',
   marketplaceIdentifier: 'my-nft-token',
   marketplaceConfig: Marketplaces.openSea,
   whitelistAddresses,

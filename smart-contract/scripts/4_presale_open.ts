@@ -1,25 +1,26 @@
 import { utils } from 'ethers';
-import CollectionConfig from './../config/CollectionConfig';
+
 import NftContractProvider from '../lib/NftContractProvider';
+import CollectionConfig from './../config/CollectionConfig';
 
 async function main() {
   // Attach to deployed contract
   const contract = await NftContractProvider.getContract();
 
   if (await contract.whitelistMintEnabled()) {
-    throw '\x1b[31merror\x1b[0m ' + 'Please close the whitelist sale before opening a pre-sale.';
+    throw new Error('\x1b[31merror\x1b[0m ' + 'Please close the whitelist sale before opening a pre-sale.');
   }
 
   // Update sale price (if needed)
   const preSalePrice = utils.parseEther(CollectionConfig.preSale.price.toString());
-  if (!await (await contract.cost()).eq(preSalePrice)) {
+  if (!(await (await contract.cost()).eq(preSalePrice))) {
     console.log(`Updating the token price to ${CollectionConfig.preSale.price} ${CollectionConfig.mainnet.symbol}...`);
 
     await (await contract.setCost(preSalePrice)).wait();
   }
 
   // Update max amount per TX (if needed)
-  if (!await (await contract.maxMintAmountPerTx()).eq(CollectionConfig.preSale.maxMintAmountPerTx)) {
+  if (!(await (await contract.maxMintAmountPerTx()).eq(CollectionConfig.preSale.maxMintAmountPerTx))) {
     console.log(`Updating the max mint amount per TX to ${CollectionConfig.preSale.maxMintAmountPerTx}...`);
 
     await (await contract.setMaxMintAmountPerTx(CollectionConfig.preSale.maxMintAmountPerTx)).wait();
@@ -37,7 +38,7 @@ async function main() {
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
+main().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });
