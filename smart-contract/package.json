@@ -72,7 +72,6 @@
     "format-fix": "prettier --write \"**/*.{js,ts,sol}\"",
     "solhint": "npx solhint 'contracts/**/*.sol'",
     "solhint-fix": "npx solhint 'contracts/**/*.sol' --fix",
-    "refresh_os": "ts-node --script-mode scripts/9_refresh_opensea.ts %npm_config_start% %npm_config_end%",
-    "demo": "echo \"Hello $npm_config_first $npm_config_last\""
+    "refresh_os": "ts-node --script-mode scripts/9_refresh_opensea.ts"
   }
 }

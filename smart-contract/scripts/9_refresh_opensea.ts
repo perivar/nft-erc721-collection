@@ -16,7 +16,7 @@ const END = parseInt(endArg);
 if (!START || !END) {
   throw new Error(
     '\x1b[31merror\x1b[0m ' +
-      'Please provide a start and end edition number. Example: npm run refresh_os --start 1 --end 10'
+      'Please provide a start and end edition number. Example: npm run refresh_os 1 10 or yarn refresh_os 1 10'
   );
 }
 
@@ -30,7 +30,7 @@ async function main() {
     headless: false,
   });
 
-  console.log(`Beginning OpenSea Refresh`);
+  console.log(`Beginning OpenSea Refresh from ${START} to ${END}`);
   const page = await browser.newPage();
 
   for (let i = START; i <= END; i++) {
