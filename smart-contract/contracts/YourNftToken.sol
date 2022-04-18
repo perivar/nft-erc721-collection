@@ -6,7 +6,6 @@ import "erc721a/contracts/ERC721A.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "@openzeppelin/contracts/utils/Base64.sol";
@@ -72,9 +71,7 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
         if (reservedSupply > 0) _safeMint(msg.sender, reservedSupply);
 
         // Set the royalites
-        royaltyAddress = msg.sender;
-        royaltyFeesInBips = _royaltyFeesInBips;
-        _setDefaultRoyalty(royaltyAddress, royaltyFeesInBips);
+        setDefaultRoyalty(msg.sender, _royaltyFeesInBips);
     }
 
     // dummy constructor for testing without parameters
@@ -84,8 +81,12 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
     //     maxMintAmountPerTx = 5;
     //     hiddenMetadataUri = "ipfs://__CID__/hidden.json";
     //     reservedSupply = 10;
-    //     royaltyAddress = msg.sender;
-    //     royaltyFeesInBips = 250;
+
+    //     // Reserve initial tokens for giveaways and rewards...
+    //     if (reservedSupply > 0) _safeMint(msg.sender, reservedSupply);
+
+    //     // Set the royalites
+    //     setDefaultRoyalty(msg.sender, 250);
     // }
 
     /// Check if there are tokens left that can be minted, and that the amount does not exceed the limit per tx
@@ -318,26 +319,20 @@ contract YourNftToken is ERC721A, ERC2981, Ownable, ReentrancyGuard {
         whitelistMintEnabled = _state;
     }
 
-    function setRoyaltyFeesInBips(uint96 _fee) external onlyOwner {
-        royaltyFeesInBips = _fee;
+    function setRoyaltyAddress(address receiver) public onlyOwner {
+        royaltyAddress = receiver;
     }
 
-    /// @dev See {ERC2981-_setTokenRoyalty}.
-    function setTokenRoyalty(uint256 tokenId, address receiver)
-        external
-        onlyOwner
-    {
-        _setTokenRoyalty(tokenId, receiver, royaltyFeesInBips);
-    }
-
-    /// @dev See {ERC2981-resetTokenRoyalty}.
-    function resetTokenRoyalty(uint256 tokenId) external onlyOwner {
-        _resetTokenRoyalty(tokenId);
+    function setRoyaltyFeesInBips(uint96 fees) public onlyOwner {
+        require(fees <= 1000, "No more than 10% royalties!");
+        royaltyFeesInBips = fees;
     }
 
     /// @dev See {ERC2981-setDefaultRoyalty}.
-    function setDefaultRoyalty(address receiver) external onlyOwner {
-        _setDefaultRoyalty(receiver, royaltyFeesInBips);
+    function setDefaultRoyalty(address receiver, uint96 fees) public onlyOwner {
+        setRoyaltyAddress(receiver);
+        setRoyaltyFeesInBips(fees);
+        _setDefaultRoyalty(receiver, fees);
     }
 
     function withdraw() public onlyOwner nonReentrant {

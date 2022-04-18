@@ -68,15 +68,18 @@ describe(CollectionConfig.contractName, function () {
     expect(await contract.maxMintAmountPerTx()).to.equal(CollectionConfig.whitelistSale.maxMintAmountPerTx);
     expect(await contract.hiddenMetadataUri()).to.equal(CollectionConfig.hiddenMetadataUri);
     expect(await contract.reservedSupply()).to.equal(CollectionConfig.reservedSupply);
+    expect(await contract.royaltyAddress()).to.equal(await owner.getAddress());
     expect(await contract.royaltyFeesInBips()).to.equal(CollectionConfig.royaltyFeesInBips);
 
     expect(await contract.paused()).to.equal(true);
     expect(await contract.whitelistMintEnabled()).to.equal(false);
     expect(await contract.revealed()).to.equal(false);
 
-    expect(await contract.tokenURI(1)).to.equal(CollectionConfig.hiddenMetadataUri);
-    expect(await contract.tokenURI(10)).to.equal(CollectionConfig.hiddenMetadataUri);
-    await expect(contract.tokenURI(11)).to.be.revertedWith('ERC721Metadata: URI query for nonexistent token');
+    if (CollectionConfig.reservedSupply > 0) {
+      expect(await contract.tokenURI(1)).to.equal(CollectionConfig.hiddenMetadataUri);
+      expect(await contract.tokenURI(CollectionConfig.reservedSupply)).to.equal(CollectionConfig.hiddenMetadataUri);
+    }
+    await expect(contract.tokenURI(CollectionConfig.reservedSupply + 1)).to.be.revertedWith('ERC721Metadata: URI query for nonexistent token');
   });
 
   it('Before any sale', async function () {
@@ -99,7 +102,7 @@ describe(CollectionConfig.contractName, function () {
     )).to.be.revertedWith('Invalid mint amount!');
 
     // Check balances
-    expect(await contract.balanceOf(await owner.getAddress())).to.equal(11);
+    expect(await contract.balanceOf(await owner.getAddress())).to.equal(CollectionConfig.reservedSupply + 1);
     expect(await contract.balanceOf(await whitelistedUser.getAddress())).to.equal(1);
     expect(await contract.balanceOf(await holder.getAddress())).to.equal(0);
     expect(await contract.balanceOf(await externalUser.getAddress())).to.equal(0);
@@ -169,7 +172,7 @@ describe(CollectionConfig.contractName, function () {
     await contract.setCost(utils.parseEther(CollectionConfig.preSale.price.toString()));
 
     // Check balances
-    expect(await contract.balanceOf(await owner.getAddress())).to.equal(11);
+    expect(await contract.balanceOf(await owner.getAddress())).to.equal(CollectionConfig.reservedSupply + 1);
     expect(await contract.balanceOf(await whitelistedUser.getAddress())).to.equal(2);
     expect(await contract.balanceOf(await holder.getAddress())).to.equal(0);
     expect(await contract.balanceOf(await externalUser.getAddress())).to.equal(0);
@@ -214,30 +217,38 @@ describe(CollectionConfig.contractName, function () {
     await expect(contract.connect(externalUser).setMerkleRoot('0x0000000000000000000000000000000000000000000000000000000000000000')).to.be.revertedWith('Ownable: caller is not the owner');
     await expect(contract.connect(externalUser).setWhitelistMintEnabled(false)).to.be.revertedWith('Ownable: caller is not the owner');
     await expect(contract.connect(externalUser).withdraw()).to.be.revertedWith('Ownable: caller is not the owner');
+
+    await expect(contract.connect(externalUser).setRoyaltyAddress(await externalUser.getAddress())).to.be.revertedWith('Ownable: caller is not the owner');
+    await expect(contract.connect(externalUser).setRoyaltyFeesInBips(CollectionConfig.royaltyFeesInBips)).to.be.revertedWith('Ownable: caller is not the owner');
+    await expect(contract.connect(externalUser).setDefaultRoyalty(await externalUser.getAddress(), CollectionConfig.royaltyFeesInBips)).to.be.revertedWith('Ownable: caller is not the owner');
   });
 
   it('Wallet of owner', async function () {
-    expect(await contract.walletOfOwner(await owner.getAddress())).deep.equal([
-      BigNumber.from(1),
-      BigNumber.from(2),
-      BigNumber.from(3),
-      BigNumber.from(4),
-      BigNumber.from(5),
-      BigNumber.from(6),
-      BigNumber.from(7),
-      BigNumber.from(8),
-      BigNumber.from(9),
-      BigNumber.from(10),
-      BigNumber.from(11),
-    ]);
+
+    const expectedWalletOfOwner = [];
+    // reservedSupply
+    for (const i of [...Array(CollectionConfig.reservedSupply).keys()]) {
+      expectedWalletOfOwner.push(BigNumber.from(i + 1));
+    }
+    // minted 1
+    expectedWalletOfOwner.push(BigNumber.from(CollectionConfig.reservedSupply + 1));
+
+    expect(await contract.walletOfOwner(
+      await owner.getAddress(),
+      {
+        // Set gas limit to the maximum value since this function should be used off-chain only and it would fail otherwise...
+        gasLimit: BigNumber.from('0xffffffffffffffff'),
+      },
+    )).deep.equal(expectedWalletOfOwner);
+
     expect(await contract.walletOfOwner(await whitelistedUser.getAddress())).deep.equal([
-      BigNumber.from(12),
-      BigNumber.from(13),
-      BigNumber.from(16),
+      BigNumber.from(CollectionConfig.reservedSupply + 2),
+      BigNumber.from(CollectionConfig.reservedSupply + 3),
+      BigNumber.from(CollectionConfig.reservedSupply + 6),
     ]);
     expect(await contract.walletOfOwner(await holder.getAddress())).deep.equal([
-      BigNumber.from(14),
-      BigNumber.from(15),
+      BigNumber.from(CollectionConfig.reservedSupply + 4),
+      BigNumber.from(CollectionConfig.reservedSupply + 5),
     ]);
     expect(await contract.walletOfOwner(await externalUser.getAddress())).deep.equal([]);
   });
@@ -247,7 +258,7 @@ describe(CollectionConfig.contractName, function () {
       this.skip();
     }
 
-    const alreadyMinted = 16;
+    const alreadyMinted = CollectionConfig.reservedSupply + 6;
     const maxMintAmountPerTx = 1000;
     const iterations = Math.floor((CollectionConfig.maxSupply - alreadyMinted) / maxMintAmountPerTx);
     const expectedTotalSupply = iterations * maxMintAmountPerTx + alreadyMinted;
@@ -267,9 +278,16 @@ describe(CollectionConfig.contractName, function () {
 
     // Mint last tokens with owner address and test walletOfOwner(...)
     await contract.connect(owner).mint(lastMintAmount, { value: getPrice(SaleType.PUBLIC_SALE, lastMintAmount) });
-    const expectedWalletOfOwner = [
-      BigNumber.from(1),
-    ];
+
+    const expectedWalletOfOwner = [];
+    // reservedSupply
+    for (const i of [...Array(CollectionConfig.reservedSupply).keys()]) {
+      expectedWalletOfOwner.push(BigNumber.from(i + 1));
+    }
+    // minted 1
+    expectedWalletOfOwner.push(BigNumber.from(CollectionConfig.reservedSupply + 1));
+
+    // the rest of the minted
     for (const i of [...Array(lastMintAmount).keys()].reverse()) {
       expectedWalletOfOwner.push(BigNumber.from(CollectionConfig.maxSupply - i));
     }
